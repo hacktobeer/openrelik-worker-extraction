@@ -53,9 +53,11 @@ def extract_exif_task(
     Returns:
         Base64-encoded dictionary containing task results.
     """
-    input_files = get_input_files(pipe_result, input_files or [])
+    filter_dict = {"mime_types": ["image/*"]}
+
+    input_files = get_input_files(pipe_result, input_files or [], filter=filter_dict)
     output_files = []
-    base_command = ["exif"]
+    base_command = ["exif", "-m"]
 
     files_processed: int = 0
     for input_file in input_files:
