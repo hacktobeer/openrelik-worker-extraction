@@ -1,0 +1,96 @@
+# Copyright 2025 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import subprocess
+import time
+
+from datetime import datetime
+
+from openrelik_worker_common.file_utils import create_output_file
+from openrelik_worker_common.task_utils import create_task_result, get_input_files
+
+from .app import celery
+
+# Task name used to register and route the task to the correct queue.
+TASK_NAME = "openrelik-worker-extraction.tasks.extract_exif"
+
+# Task metadata for registration in the core system.
+TASK_METADATA = {
+    "display_name": "Extract EXIF data",
+    "description": "Extract EXIF data from images",
+    "task_config": [],
+}
+
+
+@celery.task(bind=True, name=TASK_NAME, metadata=TASK_METADATA)
+def extract_exif_task(
+    self,
+    pipe_result: str = None,
+    input_files: list = None,
+    output_path: str = None,
+    workflow_id: str = None,
+    task_config: dict = None,
+) -> str:
+    """Extract EXIF data and create output files for each processed file.
+
+    Args:
+        pipe_result: Base64-encoded result from the previous Celery task, if any.
+        input_files: List of input file dictionaries (unused if pipe_result exists).
+        output_path: Path to the output directory.
+        workflow_id: ID of the workflow.
+        task_config: User configuration for the task.
+
+    Returns:
+        Base64-encoded dictionary containing task results.
+    """
+    input_files = get_input_files(pipe_result, input_files or [])
+    output_files = []
+    base_command = ["exif"]
+
+    files_processed: int = 0
+    for input_file in input_files:
+        output_file = create_output_file(
+            output_path,
+            display_name=f"{input_file.get("display_name")}.exif.txt",
+        )
+        command = base_command + ["-o", output_file.path]
+        command = base_command + [input_file.get("path")]
+        base_command_string = " ".join(base_command)
+
+        process = subprocess.Popen(command)
+        start_time = datetime.now()
+        update_interval_s = 0.1
+
+        while process.poll() is None:
+            duration = datetime.now() - start_time
+            rate = (
+                int(files_processed / duration.total_seconds())
+                if duration.total_seconds() > 0
+                else 0
+            )
+            self.send_event(
+                "task-progress",
+                data={"files_processed": str(files_processed), "rate": rate},
+            )
+            time.sleep(update_interval_s)
+        files_processed += 1
+
+    if not output_files:
+        raise RuntimeError("No EXIF data extracted from the provided files.")
+
+    return create_task_result(
+        output_files=output_files,
+        workflow_id=workflow_id,
+        command=base_command_string,
+        meta={},
+    )

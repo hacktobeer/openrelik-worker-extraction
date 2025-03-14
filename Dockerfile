@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gpg-agent \
     wget \
     tzdata \
+    exif \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Plaso

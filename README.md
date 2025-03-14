@@ -1,4 +1,9 @@
-## Openrelik worker for running image_extract on input files to extract forensic artifacts
+## Openrelik worker for running extraction tools on input files to extract forensic artifacts
+
+Supported tools
+* image_export.py
+* p7zip
+* exif
 
 ### Installation
 Add the below configuration to the OpenRelik `docker-compose.yml` file.
