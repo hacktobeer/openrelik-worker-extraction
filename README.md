@@ -4,7 +4,7 @@
 Add the below configuration to the OpenRelik `docker-compose.yml` file.
 
 ```
-openrelik-worker-extraction:
+testopenrelik-worker-extraction:
     container_name: openrelik-worker-extraction
     image: ghcr.io/openrelik/openrelik-worker-extraction:${OPENRELIK_WORKER_ARTIFACT_EXTRACTION_VERSION:-latest}
     restart: always
